@@ -47,3 +47,19 @@ Notes
 - pgvector is installed by the image; you can add vector tables and use raw SQL for vector ops.
 - Nuxt UI components are available out of the box in the web app.
 
+Telegram Mini App (TMA)
+- API: Add `TELEGRAM_BOT_TOKEN` and `JWT_SECRET` to `apps/api/.env` (see `apps/api/.env.example`).
+- Web: Optional analytics via `VITE_TMA_ANALYTICS_TOKEN` and `VITE_TMA_ANALYTICS_APP` in `apps/web/.env`.
+- Client boot logic runs in `apps/web/plugins/tma.client.ts`:
+  - Detects TMA environment, adds `tma-mode` to `<html>`, sets `--tg-viewport-height`.
+  - Attempts WebApp initData login against `POST /api/telegram/webAppLogin` and stores `TMA_JWT` locally.
+  - Deep start tokens (query `?t=<jwt>` or WebApp `start_param`) are honored if present.
+- Server route: `apps/api/server/routes/telegram/webAppLogin.post.ts` verifies Telegram `initData` with the bot token and returns `{ ok, userId, token }`.
+
+TMA Dev Mode (forced with ?tma=1)
+- Frontend injects a mock `Telegram.WebApp` object when `?tma=1` and not inside Telegram.
+- Configure shared dev secret:
+  - API: set `TMA_DEV_SECRET` in `apps/api/.env`.
+  - Web: set `NUXT_PUBLIC_TMA_DEV_SECRET` in `apps/web/.env` to the same value.
+- The web plugin will call `POST /api/telegram/devLogin` with the mock user to obtain a JWT.
+- Dev route file: `apps/api/server/routes/telegram/devLogin.post.ts` (disabled in production).

@@ -1,27 +1,106 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector(schema: "public")]
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String      @id @default(cuid())
+  email      String      @unique
+  name       String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
   embeddings Embedding[]
 }
 
 // Example vector-enabled model (requires pgvector extension enabled in DB)
 model Embedding {
-  id        String   @id @default(cuid())
-  user      User?    @relation(fields: [userId], references: [id])
+  id        String                @id @default(cuid())
+  user      User?                 @relation(fields: [userId], references: [id])
   userId    String?
   // Prisma doesn't have a native vector type yet; use Unsupported and raw SQL for vector ops
   vector    Unsupported("vector")
+  createdAt DateTime              @default(now())
+}
+
+// Minimal bot schema: public profile, private settings, and a single embedding for search
+model Bot {
+  id        String   @id @default(cuid())
+
+  // Ownership and identity
+  ownerTgId String   @unique // Telegram user id (string form)
+  handle    String   @unique
+
+  // Public profile for search/discovery
+  headline   String
+  summary    String
+  lookingFor String?
+  offering   String?
+  tags       String[]
+
+  // Materialized public text used for embedding (compose in app code)
+  searchText String
+
+  // Vector embedding of searchText (pgvector). Set dimension + index via SQL.
+  publicEmbedding Unsupported("vector")?
+
+  // Private settings kept out of search
+  private Json
+
+  // Runtime + behavior parameters
+  // Minimum seconds between any two messages from this bot
+  rateLimitSeconds     Int       @default(10)
+  // How many conversations can be handled concurrently
+  concurrency          Int       @default(1)
+  // Maximum messages per conversation/session before halting
+  maxConversationLength Int      @default(50)
+  // Timestamp of the last message sent, used to compute availability
+  lastMessageAt        DateTime?
+
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([lastMessageAt])
+}
+
+// Token launch configuration per Telegram user.
+// Enforce one token per Telegram user via unique ownerTgId.
+enum HardCapTier {
+  TON_50
+  TON_200
+  TON_500
+  TON_1000
+  TON_5000
+}
+
+model Token {
+  id        String      @id @default(cuid())
+
+  // Ownership by Telegram user (string form of numeric id)
+  ownerTgId String      @unique
+
+  // Token metadata
+  name        String
+  symbol      String
+  description String?
+  imagePath   String
+  chainAddress String    // Set by backend during creation (TON address)
+
+  // Launch parameters
+  hardCapTier   HardCapTier
+  timeLimitDays Int          // 30/60/90 days
+  totalSupply   BigInt       // default 1_000_000_000
+
+  // Lifecycle
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([hardCapTier])
 }

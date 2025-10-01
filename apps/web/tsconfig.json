@@ -1,9 +1,20 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"],
-    "baseUrl": "."
+    "types": ["node", "nuxt", "@nuxtjs/tailwindcss"],
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./*"],
+      "@/*": ["./*"]
+    }
   },
-  "include": ["**/*.ts", "**/*.vue", "nuxt.config.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.vue",
+    "nuxt.config.ts",
+    ".nuxt/types/*.d.ts",
+    ".nuxt/nuxt.d.ts",
+    ".nuxt/imports.d.ts",
+    ".nuxt/typed-router.d.ts"
+  ]
 }
-

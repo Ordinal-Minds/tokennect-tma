@@ -4,27 +4,31 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nitro dev",
-    "build": "nitro build",
+    "dev": "nitropack dev",
+    "build": "nitropack build",
     "start": "node .output/server/index.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "prisma generate && pnpm -F @miniapp/api db:prepare",
     "prisma:push": "prisma db push",
     "prisma:push:clean": "prisma db push --force-reset",
     "db:extensions": "node scripts/ensure-extensions.mjs",
+    "db:vector": "node scripts/setup-vector.mjs",
+    "db:prepare": "pnpm -F @miniapp/api db:extensions && pnpm -F @miniapp/api db:vector",
     "prisma:studio": "prisma studio",
     "format": "prettier -w ."
   },
   "dependencies": {
-    "@prisma/client": "^5.19.1",
-    "h3": "^1.11.1"
+    "@prisma/client": "latest",
+    "h3": "^1.11.1",
+    "formidable": "^3.5.1"
   },
   "devDependencies": {
     "eslint": "^9.10.0",
-    "nitro": "^2.2.28",
-    "prisma": "^5.19.1",
+    "nitropack": "^2.12.6",
+    "@types/formidable": "^3.4.5",
+    "prisma": "latest",
     "typescript": "^5.5.4"
   }
 }
