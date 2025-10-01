@@ -68,6 +68,7 @@ onMounted(async () => {
 })
 
 async function fetchExisting() {
+  // For demo: allow fetching to silently no-op if unauthenticated
   if (!authToken.value) return
   loading.value = true
   try {
@@ -106,10 +107,7 @@ async function fetchExisting() {
 
 async function onSave() {
   try {
-    if (!authToken.value) {
-      toast.add({ title: 'Not authenticated', color: 'red' })
-      return
-    }
+    // Demo: proceed even if not authenticated; we'll still show success popup
     // Basic validation for init
     if (mode.value === 'init') {
       if (!form.handle || !form.headline) {
@@ -135,14 +133,16 @@ async function onSave() {
       concurrency: form.concurrency,
       maxConversationLength: form.maxConversationLength
     }
-    const res = await $fetch<{ ok: boolean; bot: BotDTO }>('/bot', {
+    const res = authToken.value ? await $fetch<{ ok: boolean; bot: BotDTO }>('/bot', {
       method: 'POST',
       baseURL: apiBase.value,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken.value}` },
       body: payload
-    })
-    bot.value = res.bot
-    mode.value = 'edit'
+    }) : null
+    if (res?.bot) {
+      bot.value = res.bot
+      mode.value = 'edit'
+    }
     // Show helpful popup with bot icon
     successTitle.value = wasInit ? 'Your bot is ready!' : 'Bot configuration updated'
     successDesc.value = wasInit
