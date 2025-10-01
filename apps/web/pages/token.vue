@@ -16,7 +16,7 @@ type TokenDTO = {
 }
 
 const config = useRuntimeConfig()
-const apiBase = computed(() => (config.public.apiBase as string) + '/api')
+const apiBase = computed(() => ((config.public.apiBase as string) || 'http://localhost:3001').replace(/\/$/, ''))
 const toast = useToast()
 const { token: authToken } = useTma()
 
@@ -74,6 +74,11 @@ async function fetchExisting() {
     loading.value = false
   }
 }
+
+// When auth becomes available later (mock login), fetch the existing token
+watch(() => authToken.value, (v) => {
+  if (v) fetchExisting()
+})
 
 function onPickImage(e: Event) {
   const input = e.target as HTMLInputElement

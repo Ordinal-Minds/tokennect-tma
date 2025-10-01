@@ -163,7 +163,7 @@ async function devLoginViaMockIfPossible(apiBase: string, devSecret: string | un
       return false
     }
     const mockUser = (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user
-    const url = apiBase.replace(/\/$/, '') + '/api/telegram/devLogin'
+    const url = apiBase.replace(/\/$/, '') + '/telegram/devLogin'
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -180,6 +180,7 @@ async function devLoginViaMockIfPossible(apiBase: string, devSecret: string | un
     if (!userId || !token) return false
     localStorage.setItem('TMA_JWT', token)
     localStorage.setItem('TMA_USER_ID', userId)
+    try { window.dispatchEvent(new CustomEvent('tma:jwt', { detail: { token, userId } })) } catch {}
     sessionStorage.setItem('tmaWebAppLoginDone', '1')
     D.log('Dev mock login complete', { userId })
     return true
@@ -207,7 +208,7 @@ async function loginViaWebAppIfPossible(apiBase: string, devSecret: string | und
       D.log('Skip WebApp login: JWT already present')
       return true
     }
-    if (sessionStorage.getItem('tmaWebAppLoginDone')) {
+    if (sessionStorage.getItem('tmaWebAppLoginDone') && localStorage.getItem('TMA_JWT')) {
       D.log('Skip WebApp login: already completed this session')
       return true
     }
@@ -222,7 +223,7 @@ async function loginViaWebAppIfPossible(apiBase: string, devSecret: string | und
     }
     D.log('Have initData', { len: initData.length, platform: tg?.platform, version: tg?.version })
 
-    const url = apiBase.replace(/\/$/, '') + '/api/telegram/webAppLogin'
+    const url = apiBase.replace(/\/$/, '') + '/telegram/webAppLogin'
     D.log('POST webAppLogin', { url, base: apiBase })
 
     const res = await fetch(url, {
@@ -250,6 +251,7 @@ async function loginViaWebAppIfPossible(apiBase: string, devSecret: string | und
     }
     localStorage.setItem('TMA_JWT', token)
     localStorage.setItem('TMA_USER_ID', userId)
+    try { window.dispatchEvent(new CustomEvent('tma:jwt', { detail: { token, userId } })) } catch {}
     sessionStorage.setItem('tmaWebAppLoginDone', '1')
     D.log('Applied server session via webAppLogin', { userId })
     return true
@@ -262,7 +264,7 @@ async function loginViaWebAppIfPossible(apiBase: string, devSecret: string | und
 export default defineNuxtPlugin(async () => {
   if (typeof window === 'undefined') return
   const config = useRuntimeConfig()
-  const apiBase = (config.public.apiBase as string) || 'http://localhost:3001'
+  const apiBase = ((config.public.apiBase as string) || 'http://localhost:3001').replace(/\/$/, '')
   prepareTmaShell()
   await initAnalyticsIfPossible()
 
@@ -270,6 +272,7 @@ export default defineNuxtPlugin(async () => {
     if (!isTmaEnv()) return
     // Clear any stale token for fresh TMA session
     localStorage.removeItem('TMA_JWT')
+    try { window.dispatchEvent(new CustomEvent('tma:jwt-cleared')) } catch {}
   } catch {}
 
   try {
@@ -289,6 +292,7 @@ export default defineNuxtPlugin(async () => {
       if (token) {
         sessionStorage.setItem('tmaStartHandled', '1')
         localStorage.setItem('TMA_JWT', token)
+        try { window.dispatchEvent(new CustomEvent('tma:jwt', { detail: { token } })) } catch {}
         return
       }
     }

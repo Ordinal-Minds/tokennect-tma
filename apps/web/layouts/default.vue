@@ -7,13 +7,13 @@ const nav = [
   { label: 'Token', to: '/token' },
   { label: 'Bot Setup', to: '/bot' },
   { label: 'Live Feed', to: '/feed' },
-  { label: 'Portfolio / Sales', to: '/portfolio' }
+  { label: 'Portfolio / Sales', to: '/portfolio' },
 ]
 
 const user = reactive({
   name: 'Satoshi Nakamoto',
   username: '',
-  avatar: 'https://i.pravatar.cc/64?u=tokenect'
+  avatar: 'https://i.pravatar.cc/64?u=Tokennect',
 })
 
 const mobileOpen = ref(false)
@@ -21,7 +21,10 @@ const mobileOpen = ref(false)
 onMounted(() => {
   const tUser = getTelegramMiniAppUser()
   if (tUser) {
-    const display = [tUser.first_name, tUser.last_name].filter(Boolean).join(' ').trim()
+    const display = [tUser.first_name, tUser.last_name]
+      .filter(Boolean)
+      .join(' ')
+      .trim()
     user.name = display || tUser.username || user.name
     if (tUser.username) user.username = tUser.username
     const photo = getTelegramProfilePhoto()
@@ -38,7 +41,7 @@ const isActive = (path: string) => route.path === path
       <UContainer class="py-3 flex items-center justify-between">
         <div class="flex items-center gap-6">
           <NuxtLink to="/" class="font-semibold text-lg tracking-tight">
-            Tokenect
+            Tokennect
           </NuxtLink>
           <!-- Mobile menu button -->
           <UButton
@@ -57,7 +60,11 @@ const isActive = (path: string) => route.path === path
               :key="item.to"
               :to="item.to"
               class="px-3 py-1.5 rounded-md text-sm"
-              :class="isActive(item.to) ? 'bg-muted text-foreground' : 'text-gray-600 hover:text-foreground hover:bg-muted'"
+              :class="
+                isActive(item.to)
+                  ? 'bg-muted text-foreground'
+                  : 'text-gray-600 hover:text-foreground hover:bg-muted'
+              "
             >
               {{ item.label }}
             </ULink>
@@ -76,17 +83,35 @@ const isActive = (path: string) => route.path === path
     </nav>
 
     <!-- Mobile slide-over navigation -->
-    <USlideover v-model="mobileOpen" side="left" :ui="{ width: 'max-w-xs' }" aria-label="Navigation">
+    <USlideover
+      v-model="mobileOpen"
+      side="left"
+      :ui="{ width: 'max-w-xs' }"
+      aria-label="Navigation"
+    >
       <div class="p-4 flex flex-col h-full">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
-            <UAvatar :src="user.avatar" size="sm" :alt="user.name || 'Profile'" />
+            <UAvatar
+              :src="user.avatar"
+              size="sm"
+              :alt="user.name || 'Profile'"
+            />
             <div class="text-sm">
               <div class="font-medium leading-tight">{{ user.name }}</div>
-              <div class="text-gray-500" v-if="user.username">@{{ user.username }}</div>
+              <div class="text-gray-500" v-if="user.username">
+                @{{ user.username }}
+              </div>
             </div>
           </div>
-          <UButton color="gray" variant="ghost" size="sm" aria-label="Close menu" @click="mobileOpen = false">Close</UButton>
+          <UButton
+            color="gray"
+            variant="ghost"
+            size="sm"
+            aria-label="Close menu"
+            @click="mobileOpen = false"
+            >Close</UButton
+          >
         </div>
 
         <nav class="flex-1 space-y-1">
@@ -96,16 +121,18 @@ const isActive = (path: string) => route.path === path
             :to="item.to"
             class="block px-3 py-2 rounded-md text-sm"
             :aria-current="isActive(item.to) ? 'page' : undefined"
-            :class="isActive(item.to) ? 'bg-muted text-foreground' : 'text-gray-700 hover:text-foreground hover:bg-muted'"
+            :class="
+              isActive(item.to)
+                ? 'bg-muted text-foreground'
+                : 'text-gray-700 hover:text-foreground hover:bg-muted'
+            "
             @click="mobileOpen = false"
           >
             {{ item.label }}
           </ULink>
         </nav>
 
-        <div class="pt-2 mt-auto text-xs text-gray-400">
-          Tokenect
-        </div>
+        <div class="pt-2 mt-auto text-xs text-gray-400">Tokennect</div>
       </div>
     </USlideover>
 
@@ -115,5 +142,4 @@ const isActive = (path: string) => route.path === path
       </UContainer>
     </main>
   </div>
-  
 </template>

@@ -16,6 +16,9 @@ model User {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   embeddings Embedding[]
+  // Linked TON wallet (MVP: simple address string)
+  walletAddressTon String?
+  walletLinkedAt   DateTime?
 }
 
 // Example vector-enabled model (requires pgvector extension enabled in DB)
@@ -66,6 +69,11 @@ model Bot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relations
+  conversationsA Conversation[] @relation("BotAConversations")
+  conversationsB Conversation[] @relation("BotBConversations")
+  messagesSent   ConversationMessage[] @relation("BotSentMessages")
+
   @@index([isActive])
   @@index([lastMessageAt])
 }
@@ -103,4 +111,42 @@ model Token {
   updatedAt  DateTime   @updatedAt
 
   @@index([hardCapTier])
+}
+
+// Conversation lifecycle between two bots
+enum ConversationStatus {
+  ACTIVE
+  COMPLETED
+  HALTED
+}
+
+model Conversation {
+  id          String              @id @default(cuid())
+  botA        Bot                 @relation("BotAConversations", fields: [botAId], references: [id])
+  botAId      String
+  botB        Bot                 @relation("BotBConversations", fields: [botBId], references: [id])
+  botBId      String
+  status      ConversationStatus  @default(ACTIVE)
+  messageCount Int                @default(0)
+  summary     String?
+  lastSpeakerBotId String?
+  startedAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  messages    ConversationMessage[]
+
+  @@index([status])
+  @@index([botAId, botBId])
+}
+
+model ConversationMessage {
+  id             String        @id @default(cuid())
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  sender         Bot           @relation("BotSentMessages", fields: [senderBotId], references: [id])
+  senderBotId    String
+  content        String
+  turn           Int           @default(0)
+  createdAt      DateTime      @default(now())
+
+  @@index([conversationId, createdAt])
 }

@@ -25,7 +25,7 @@ Getting Started
 
 4) Prisma setup (run inside api)
    pnpm -F @miniapp/api prisma:generate
-   pnpm -F @miniapp/api prisma:migrate
+   pnpm -F @miniapp/api prisma:push
    # optional: pnpm -F @miniapp/api prisma:studio
 
 5) Run both apps
@@ -44,6 +44,20 @@ Scripts
 
 Notes
 - The API is configured to Prisma against the Postgres instance on port 5464.
+
+## LLM Orchestration
+
+- A lightweight in-process scheduler runs in `apps/api` to drive bot↔bot conversations.
+- Tick interval is `ORCHESTRATOR_INTERVAL_MS` (default 1000ms). Set in `apps/api/.env` if needed.
+- Conversations are persisted via Prisma models `Conversation` and `ConversationMessage`.
+- Each bot’s `rateLimitSeconds`, `concurrency`, and `maxConversationLength` parameters are respected.
+- Summaries are generated when a conversation completes.
+- LLM provider: OpenAI Chat Completions if `OPENAI_API_KEY` is set; falls back to a deterministic mock otherwise.
+
+Environment vars (optional):
+- OPENAI_API_KEY: API key for OpenAI. Optional; if absent, responses are mocked for dev.
+- OPENAI_MODEL: Override model (default `gpt-4o-mini`).
+- ORCHESTRATOR_INTERVAL_MS: Tick interval in ms (default 1000).
 - pgvector is installed by the image; you can add vector tables and use raw SQL for vector ops.
 - Nuxt UI components are available out of the box in the web app.
 

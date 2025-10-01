@@ -21,13 +21,15 @@
   },
   "dependencies": {
     "@prisma/client": "latest",
+    "@ton/crypto": "^3.3.0",
+    "formidable": "^3.5.1",
     "h3": "^1.11.1",
-    "formidable": "^3.5.1"
+    "ton": "^13.9.0"
   },
   "devDependencies": {
+    "@types/formidable": "^3.4.5",
     "eslint": "^9.10.0",
     "nitropack": "^2.12.6",
-    "@types/formidable": "^3.4.5",
     "prisma": "latest",
     "typescript": "^5.5.4"
   }

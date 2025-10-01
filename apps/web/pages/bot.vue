@@ -20,7 +20,7 @@ type BotDTO = {
 }
 
 const config = useRuntimeConfig()
-const apiBase = computed(() => (config.public.apiBase as string) + '/api')
+const apiBase = computed(() => ((config.public.apiBase as string) || 'http://localhost:3001').replace(/\/$/, ''))
 const toast = useToast()
 const { token: authToken } = useTma()
 
@@ -228,4 +228,3 @@ const availability = computed(() => bot.value?.availability)
     </UCard>
   </div>
 </template>
-
