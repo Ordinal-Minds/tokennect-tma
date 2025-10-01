@@ -13,7 +13,8 @@
     "lint": "pnpm -r lint",
     "lint:fix": "pnpm -r lint:fix",
     "typecheck": "pnpm -r typecheck",
-    "format": "pnpm -r format"
+    "format": "pnpm -r format",
+    "push:both": "git push origin HEAD:main && git push tokenect-temp HEAD:main"
   },
   "devDependencies": {
     "@eslint/js": "^9.10.0",

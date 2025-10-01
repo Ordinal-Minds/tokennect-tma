@@ -43,8 +43,8 @@ function isTmaEnv(): boolean {
     const forced = qp.has('tma') || qp.has('tgWebApp') || qp.get('mode') === 'tma'
     const tg = (window as any)?.Telegram?.WebApp
     const hasInitData = typeof tg?.initData === 'string' && tg.initData.length > 0
-    const result = true // default enabled
-    D.log('Env check (default-enabled)', { forced, hasInitData, result })
+    const result = forced || hasInitData
+    D.log('Env check', { forced, hasInitData, result })
     return result
   } catch {
     return true
@@ -55,7 +55,8 @@ function isTmaEnv(): boolean {
 function isForcedTma(): boolean {
   try {
     if (typeof window === 'undefined') return false
-    return true
+    const qp = new URLSearchParams(window.location.search)
+    return qp.has('tma') || qp.has('tgWebApp') || qp.get('mode') === 'tma'
   } catch {
     return true
   }

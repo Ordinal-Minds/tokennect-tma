@@ -1,6 +1,5 @@
 {
-  "url": "http://localhost:3000",
+  "url": "https://tokenect.netlify.app",
   "name": "MiniApp",
   "iconUrl": "/icon.svg"
 }
-
