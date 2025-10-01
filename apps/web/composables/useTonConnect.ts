@@ -17,6 +17,15 @@ type WalletInfo = {
 let tcui: any | null = null
 let onStatusBound = false
 
+// Storage keys used by @tonconnect/ui; clearing them forces a fresh session.
+const TONCONNECT_KEYS = [
+  'ton-connect-storage_bridge__lastWalletInfo',
+  'ton-connect-storage_wallet__connectRequests',
+  'ton-connect-storage_wallet__lastEventId',
+  'ton-connect-ui__wallet',
+  'ton-connect-ui__last-wallet',
+]
+
 export function useTonConnect() {
   const connected = ref(false)
   const address = ref<string | null>(null)
@@ -25,6 +34,13 @@ export function useTonConnect() {
 
   async function ensureInstance() {
     if (typeof window === 'undefined') return null
+    // For demo: always invalidate any previous TonConnect session on reload
+    // so the "Connect" button can be used repeatedly without sticky state.
+    if (!tcui) {
+      try {
+        TONCONNECT_KEYS.forEach((k) => localStorage.removeItem(k))
+      } catch {}
+    }
     if (!tcui) {
       const mod = await import('@tonconnect/ui')
       const { TonConnectUI } = mod as any
@@ -64,6 +80,13 @@ export function useTonConnect() {
     if (!ui) return
     try {
       await ui.disconnect()
+      // Also nuke any cached state to ensure clean next connect
+      try {
+        TONCONNECT_KEYS.forEach((k) => localStorage.removeItem(k))
+      } catch {}
+      wallet.value = null
+      address.value = null
+      connected.value = false
     } catch (e) {
       console.warn('TonConnect disconnect failed', e)
     }
@@ -94,4 +117,3 @@ export function useTonConnect() {
 
   return { connected, address, wallet, ready, connect, disconnect, sendTon }
 }
-
