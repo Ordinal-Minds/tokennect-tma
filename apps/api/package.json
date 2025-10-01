@@ -1,0 +1,30 @@
+{
+  "name": "@miniapp/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nitro dev",
+    "build": "nitro build",
+    "start": "node .output/server/index.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:push:clean": "prisma db push --force-reset",
+    "db:extensions": "node scripts/ensure-extensions.mjs",
+    "prisma:studio": "prisma studio",
+    "format": "prettier -w ."
+  },
+  "dependencies": {
+    "@prisma/client": "^5.19.1",
+    "h3": "^1.11.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.10.0",
+    "nitro": "^2.2.28",
+    "prisma": "^5.19.1",
+    "typescript": "^5.5.4"
+  }
+}

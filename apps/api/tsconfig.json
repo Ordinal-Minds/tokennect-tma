@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "outDir": ".nitro/types"
+  },
+  "include": ["server/**/*.ts", "nitro.config.ts", "prisma/**/*.ts"]
+}
+

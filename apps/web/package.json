@@ -1,0 +1,27 @@
+{
+  "name": "@miniapp/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --port 3000",
+    "build": "nuxt build",
+    "start": "nuxt start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "vue-tsc --noEmit",
+    "format": "prettier -w ."
+  },
+  "dependencies": {
+    "@nuxt/ui": "^2.15.0",
+    "@nuxtjs/tailwindcss": "^6.12.1",
+    "nuxt": "^3.12.4"
+  },
+  "devDependencies": {
+    "eslint": "^9.10.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4",
+    "vue-tsc": "^2.0.28"
+  }
+}
+
