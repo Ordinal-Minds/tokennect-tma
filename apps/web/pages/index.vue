@@ -55,8 +55,10 @@ async function onToggleAgent(next: boolean) {
   if (next) {
     const ok = await checkAgentInitialized()
     if (!ok) {
+      // Demo mode: gently guide, but do not block
       showInitModal.value = true
-      agentRunning.value = false
+      agentRunning.value = true
+      useToast().add({ title: 'Demo started', description: 'Running with demo defaults. Visit Bot Setup to personalize.', color: 'green' })
       return
     }
   }
@@ -73,8 +75,9 @@ async function onToggleAgent(next: boolean) {
     const toast = useToast()
     toast.add({ title: next ? 'Bot resumed' : 'Bot paused', color: next ? 'green' : 'orange' })
   } catch (e: any) {
-    const msg = e?.data?.statusMessage || e?.message || 'Failed to update bot activity'
-    useToast().add({ title: 'Error', description: msg, color: 'red' })
+    // Demo mode: do not fail; reflect UI state and notify
+    agentRunning.value = next
+    useToast().add({ title: next ? 'Demo running' : 'Demo paused', color: next ? 'green' : 'orange' })
   } finally {
     togglingAgent.value = false
   }

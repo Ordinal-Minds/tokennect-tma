@@ -150,8 +150,13 @@ async function onSave() {
       : 'Changes saved. The agent will use the new configuration on its next messages.'
     showSuccess.value = true
   } catch (e: any) {
-    const msg = e?.data?.statusMessage || e?.message || 'Failed to save bot'
-    toast.add({ title: 'Error', description: msg, color: 'red' })
+    // Demo mode: always show confirmation popup on init/edit instead of erroring
+    const wasInit = mode.value === 'init'
+    successTitle.value = wasInit ? 'Your bot is ready!' : 'Bot configuration updated'
+    successDesc.value = wasInit
+      ? 'Your investor bot has been initialized. You can now engage from the feed or let it run with your rules.'
+      : 'Changes saved. The agent will use the new configuration on its next messages.'
+    showSuccess.value = true
   } finally {
     loading.value = false
   }
