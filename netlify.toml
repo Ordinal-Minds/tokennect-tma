@@ -1,0 +1,18 @@
+[build]
+# Monorepo: focus on the web app in apps/web
+base = "apps/web"
+# Generate a static build with Nuxt 3
+command = "pnpm -F @miniapp/web generate"
+# Nuxt 3 outputs static assets to .output/public when generating
+publish = ".output/public"
+
+[build.environment]
+# Ensure a modern Node runtime with Corepack-enabled pnpm
+NODE_VERSION = "20"
+
+[[redirects]]
+# Fallback to index for client-side routing
+from = "/*"
+to = "/index.html"
+status = 200
+

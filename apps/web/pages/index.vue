@@ -64,21 +64,29 @@ function gotoBotSetup() {
   router.push('/bot')
 }
 
-// TON wallet MVP: link user wallet and show bot wallet address
+// TON wallet MVP: per-bot balance and deposit info
 const botTonAddress = ref<string>('')
+const botDepositComment = ref<string>('')
+const botBalanceTon = ref<string>('0.000000000')
 const userTonAddress = ref<string>('')
 const linking = ref(false)
 
 onMounted(async () => {
-  await fetchBotAddress()
+  await fetchBotWalletInfo()
 })
 
-async function fetchBotAddress() {
+async function fetchBotWalletInfo() {
   try {
-    const res = await $fetch<{ ok: boolean; address: string }>('/wallet/bot-address', { baseURL: apiBase.value })
-    botTonAddress.value = res.address
+    if (!authToken.value) return
+    const res = await $fetch<{ ok: true; bot: { id: string; handle: string; balanceTon: string }; deposit: { address: string; comment: string } }>(
+      '/wallet/bot/info',
+      { baseURL: apiBase.value, headers: { Authorization: `Bearer ${authToken.value}` } }
+    )
+    botTonAddress.value = res.deposit.address
+    botDepositComment.value = res.deposit.comment
+    botBalanceTon.value = res.bot.balanceTon
   } catch (e) {
-    console.error(e)
+    // Ignore if user has no bot yet
   }
 }
 
@@ -112,6 +120,15 @@ async function linkWallet() {
 
 <template>
   <div class="space-y-6">
+    <UCard v-if="!useProfile().hasProfile.value" class="!bg-card !border-border">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-medium">Complete your profile</h2>
+          <p class="text-sm text-gray-600">Add your details to unlock a polished profile page for the demo.</p>
+        </div>
+        <UButton color="primary" to="/profile/create">Create Profile</UButton>
+      </div>
+    </UCard>
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-semibold">Dashboard</h1>
@@ -200,14 +217,18 @@ async function linkWallet() {
       <div class="flex items-center justify-between mb-3">
         <div>
           <h2 class="text-lg font-medium">TON Wallet</h2>
-          <p class="text-sm text-gray-500">Link your wallet and see the bot wallet address</p>
+          <p class="text-sm text-gray-500">Your bot balance and deposit details</p>
         </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="space-y-2">
-          <div class="text-sm text-gray-500">Bot wallet (send deposits here)</div>
+          <div class="text-sm text-gray-500">Bot balance (TON)</div>
+          <div class="font-mono">{{ botBalanceTon }}</div>
+          <div class="text-sm text-gray-500 mt-4">Deposit address (shared custody)</div>
           <div class="font-mono break-all">{{ botTonAddress || '—' }}</div>
-          <div class="text-xs text-gray-500">Always verify address before sending funds.</div>
+          <div class="text-sm text-gray-500">Comment required</div>
+          <div class="font-mono">{{ botDepositComment || 'BOT:<your-bot-id>' }}</div>
+          <div class="text-xs text-gray-500">Include the exact comment to credit your bot.</div>
         </div>
         <div class="space-y-2">
           <UFormGroup label="Your TON address">

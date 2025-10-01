@@ -57,6 +57,11 @@ function removeTag(t: string) {
   form.tags = form.tags.filter((x) => x !== t)
 }
 
+// Success popup state
+const showSuccess = ref(false)
+const successTitle = ref('')
+const successDesc = ref('')
+
 onMounted(async () => {
   await fetchExisting()
 })
@@ -112,6 +117,7 @@ async function onSave() {
       }
     }
     loading.value = true
+    const wasInit = mode.value === 'init'
     const payload = {
       handle: form.handle,
       headline: form.headline,
@@ -136,7 +142,12 @@ async function onSave() {
     })
     bot.value = res.bot
     mode.value = 'edit'
-    toast.add({ title: 'Bot saved', description: 'Live bot reloaded with new parameters.' })
+    // Show helpful popup with bot icon
+    successTitle.value = wasInit ? 'Your bot is ready!' : 'Bot configuration updated'
+    successDesc.value = wasInit
+      ? 'Your investor bot has been initialized. You can now engage from the feed or let it run with your rules.'
+      : 'Changes saved. The agent will use the new configuration on its next messages.'
+    showSuccess.value = true
   } catch (e: any) {
     const msg = e?.data?.statusMessage || e?.message || 'Failed to save bot'
     toast.add({ title: 'Error', description: msg, color: 'red' })
@@ -226,5 +237,14 @@ const availability = computed(() => bot.value?.availability)
         <UButton color="primary" :loading="loading" @click="onSave">{{ mode==='init' ? 'Initialize Bot' : 'Save & Reload' }}</UButton>
       </div>
     </UCard>
+    
+    <!-- Success popup -->
+    <BotSuccessPopup
+      v-model="showSuccess"
+      :title="successTitle"
+      :description="successDesc"
+      cta-to="/feed"
+      cta-label="Go to Feed"
+    />
   </div>
 </template>

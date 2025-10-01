@@ -1,4 +1,4 @@
-import { TonClient, WalletContractV4, internal, Address, Cell, beginCell } from 'ton'
+import { TonClient, WalletContractV4, internal, Address, Cell, beginCell, toNano } from 'ton'
 import { mnemonicToPrivateKey } from '@ton/crypto'
 import { getRuntimeConfig } from '../utils/runtime'
 
@@ -62,13 +62,19 @@ export async function getBotAddress(params?: { bounceable?: boolean; testOnly?: 
   return friendly
 }
 
-export async function sendTon(opts: { to: string; amountTon: string; comment?: string }) {
+export async function sendTon(opts: { to: string; amountTon?: string; amountNano?: bigint; comment?: string }) {
   const client = getTonClient()
   const { wallet, secretKey } = await getBotWallet()
   const contract = client.open(wallet)
   const seqno = await contract.getSeqno()
   const to = Address.parse(opts.to)
-  const value = opts.amountTon
+  let value: bigint
+  if (opts.amountNano !== undefined) {
+    value = opts.amountNano
+  } else {
+    if (!opts.amountTon) throw new Error('amountTon or amountNano is required')
+    value = toNano(opts.amountTon)
+  }
   let body: Cell | undefined
   if (opts.comment && opts.comment.length > 0) {
     body = beginCell().storeUint(0, 32).storeStringTail(opts.comment).endCell()
@@ -91,4 +97,9 @@ export function validateTonAddress(a: string): boolean {
   } catch {
     return false
   }
+}
+
+export function tonToNano(amountTon: string): bigint {
+  // Delegate to ton's toNano to avoid floating errors
+  return toNano(amountTon)
 }

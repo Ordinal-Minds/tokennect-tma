@@ -69,6 +69,12 @@ model Bot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Custodial TON balance tracked internally (nanoTON)
+  tonBalanceNano BigInt @default(0)
+
+  // Ledger entries
+  ledgerEntries BotLedger[]
+
   // Relations
   conversationsA Conversation[] @relation("BotAConversations")
   conversationsB Conversation[] @relation("BotBConversations")
@@ -76,6 +82,34 @@ model Bot {
 
   @@index([isActive])
   @@index([lastMessageAt])
+}
+
+enum BotLedgerType {
+  DEPOSIT
+  WITHDRAW
+  TRANSFER
+}
+
+enum BotLedgerStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+model BotLedger {
+  id        String          @id @default(cuid())
+  bot       Bot             @relation(fields: [botId], references: [id])
+  botId     String
+  // Positive = credit, Negative = debit
+  deltaNano BigInt
+  type      BotLedgerType
+  status    BotLedgerStatus @default(CONFIRMED)
+  txHash    String?
+  commentTag String?
+  counterpartyBotId String?
+  createdAt DateTime        @default(now())
+
+  @@index([botId, createdAt])
 }
 
 // Token launch configuration per Telegram user.

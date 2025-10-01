@@ -45,6 +45,29 @@ Scripts
 Notes
 - The API is configured to Prisma against the Postgres instance on port 5464.
 
+## TON Integration
+
+- Backend uses `ton` and `@ton/crypto` to manage a custodial hot wallet for orchestrated payouts.
+- Configure in `apps/api/.env` (see example):
+  - `TON_API_ENDPOINT`, `TON_API_KEY` (Toncenter recommended)
+  - `BOT_WALLET_MNEMONIC` (24-word seed; keep small balances in dev)
+  - `TX_ORCHESTRATOR_ENABLED`, `TX_ORCHESTRATOR_INTERVAL_MS`
+- Service: `apps/api/server/services/ton.ts` provides `getBotAddress`, `sendTon`, validation helpers.
+- Bot balance is tracked off-chain via `Bot.tonBalanceNano` and `BotLedger`.
+
+Endpoints (API):
+- `GET /api/wallet/bot/info` → bot balance and deposit details (address + comment tag)
+- `POST /api/wallet/bot/payout` → queue a withdrawal paid on-chain by the orchestrator
+- `GET /api/wallet/bot/ledger` → recent ledger entries
+- `POST /api/wallet/link` → link a user’s TON address
+
+TX Orchestrator
+- Background loop (`apps/api/server/plugins/tx-orchestrator.ts`) processes pending withdrawals from `BotLedger`.
+- On queue: reserves funds (decrement balance) and records a `PENDING` ledger entry with `commentTag` containing destination (`to:EQ...`) and optional memo.
+- On success: marks ledger `CONFIRMED` and stores `seqno:*` reference.
+- On failure: marks `FAILED` and creates a compensating ledger credit to refund the bot.
+- Configure interval via `TX_ORCHESTRATOR_INTERVAL_MS` (default 1500ms).
+
 ## LLM Orchestration
 
 - A lightweight in-process scheduler runs in `apps/api` to drive bot↔bot conversations.

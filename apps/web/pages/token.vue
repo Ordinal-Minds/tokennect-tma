@@ -15,10 +15,7 @@ type TokenDTO = {
   updatedAt: string
 }
 
-const config = useRuntimeConfig()
-const apiBase = computed(() => ((config.public.apiBase as string) || 'http://localhost:3001').replace(/\/$/, ''))
 const toast = useToast()
-const { token: authToken } = useTma()
 
 const mode = ref<'creating' | 'readonly'>('creating')
 const loading = ref(false)
@@ -53,32 +50,23 @@ onMounted(async () => {
 })
 
 async function fetchExisting() {
-  if (!authToken.value) return
   loading.value = true
   try {
-    const res = await $fetch<{ ok: boolean; token: TokenDTO | null }>('/token', {
-      method: 'GET',
-      baseURL: apiBase.value,
-      headers: { Authorization: `Bearer ${authToken.value}` }
-    })
-    if (res?.token) {
-      token.value = res.token
+    const raw = window.localStorage.getItem('DEMO_TOKEN')
+    if (raw) {
+      const parsed = JSON.parse(raw) as TokenDTO
+      token.value = parsed
       mode.value = 'readonly'
     } else {
       mode.value = 'creating'
     }
-  } catch (e: any) {
+  } catch (e) {
     console.error(e)
     toast.add({ title: 'Failed to load token', color: 'red' })
   } finally {
     loading.value = false
   }
 }
-
-// When auth becomes available later (mock login), fetch the existing token
-watch(() => authToken.value, (v) => {
-  if (v) fetchExisting()
-})
 
 function onPickImage(e: Event) {
   const input = e.target as HTMLInputElement
@@ -94,33 +82,49 @@ function onPickImage(e: Event) {
 
 async function onCreate() {
   try {
-    if (!authToken.value) {
-      toast.add({ title: 'Not authenticated', color: 'red' })
-      return
-    }
     if (!form.name || !form.symbol || !form.imageFile) {
       toast.add({ title: 'Please fill required fields', color: 'orange' })
       return
     }
     loading.value = true
-    const fd = new FormData()
-    fd.set('name', form.name.trim())
-    fd.set('symbol', form.symbol.trim())
-    if (form.description) fd.set('description', form.description.trim())
-    fd.set('hardCapTier', form.hardCapTier)
-    fd.set('timeLimitDays', String(form.timeLimitDays))
-    fd.set('totalSupply', String(form.totalSupply))
-    fd.set('image', form.imageFile)
 
-    const res = await $fetch<{ ok: boolean; token: TokenDTO }>('/token', {
-      method: 'POST',
-      baseURL: apiBase.value,
-      body: fd,
-      headers: { Authorization: `Bearer ${authToken.value}` }
-    })
-    token.value = res.token
+    const id = `tok_${Math.random().toString(36).slice(2, 10)}`
+    const now = new Date().toISOString()
+    const symbol = form.symbol.trim().toUpperCase().slice(0, 6)
+    const name = form.name.trim()
+    const description = form.description?.trim() || null
+    const totalSupply = String(form.totalSupply)
+
+    // Fake TON address (visually plausible)
+    const chainAddress = `EQ${Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map((b) => (b % 16).toString(16))
+      .join('')
+      .slice(0, 46)}`
+
+    const imageUrl = form.imagePreview || `https://picsum.photos/seed/${encodeURIComponent(symbol)}/200/200`
+
+    const newToken: TokenDTO = {
+      id,
+      ownerTgId: 'demo:user',
+      name,
+      symbol,
+      description,
+      chainAddress,
+      hardCapTier: form.hardCapTier,
+      timeLimitDays: form.timeLimitDays,
+      totalSupply,
+      imagePath: imageUrl,
+      imageUrl,
+      createdAt: now,
+      updatedAt: now
+    }
+
+    token.value = newToken
     mode.value = 'readonly'
+    try { window.localStorage.setItem('DEMO_TOKEN', JSON.stringify(newToken)) } catch {}
     toast.add({ title: 'Token created' })
+    // kick off demo simulation right away
+    sim.start()
   } catch (e: any) {
     const msg = e?.data?.statusMessage || e?.message || 'Failed to create token'
     toast.add({ title: 'Error', description: msg, color: 'red' })
@@ -129,18 +133,23 @@ async function onCreate() {
   }
 }
 
-// Demo stats/charts (placeholder)
-const stats = reactive([
-  { label: 'Transactions', value: 0 },
-  { label: 'Holders', value: 0 },
-  { label: 'Circulating', value: 0 },
-  { label: 'TVL (DeFi)', value: 0 },
-])
+// Demo simulation of live stats after creation
+const sim = useDemoTokenSim(computed(() => token.value ? ({
+  id: token.value.id,
+  symbol: token.value.symbol,
+  totalSupply: token.value.totalSupply,
+}) : null))
 
-const chartData = reactive({
-  tx: Array.from({ length: 12 }, (_, i) => Math.round(10 + Math.random() * 50)),
-  holders: Array.from({ length: 12 }, () => Math.round(100 + Math.random() * 80))
-})
+// Visible stats cards derived from simulator
+const statsList = computed(() => ([
+  { label: 'Transactions', value: sim.state.transactions },
+  { label: 'Holders', value: sim.state.holders },
+  { label: 'Circulating', value: sim.state.circulating },
+  { label: 'TVL (DeFi)', value: sim.state.tvlTon },
+]))
+
+const chartTx = computed(() => sim.state.seriesTx)
+const chartHolders = computed(() => sim.state.seriesHolders)
 
 function max(arr: number[]) { return Math.max(1, ...arr) }
 </script>
@@ -205,7 +214,7 @@ function max(arr: number[]) { return Math.max(1, ...arr) }
       </UCard>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <UCard v-for="s in stats" :key="s.label" class="!bg-card !border-border shadow-card rounded-lg">
+        <UCard v-for="s in statsList" :key="s.label" class="!bg-card !border-border shadow-card rounded-lg">
           <div class="text-sm text-gray-500">{{ s.label }}</div>
           <div class="mt-1 text-2xl font-semibold">{{ s.value }}</div>
         </UCard>
@@ -218,7 +227,7 @@ function max(arr: number[]) { return Math.max(1, ...arr) }
           </div>
           <svg :viewBox="`0 0 120 40`" class="w-full h-32">
             <polyline
-              :points="chartData.tx.map((v,i)=>`${(i/(chartData.tx.length-1))*120},${40 - (v/max(chartData.tx))*38}`).join(' ')"
+              :points="chartTx.map((v,i)=>`${(i/(chartTx.length-1))*120},${40 - (v/max(chartTx))*38}`).join(' ')"
               fill="none" stroke="currentColor" stroke-width="2" class="text-blue-500" />
           </svg>
         </UCard>
@@ -228,7 +237,7 @@ function max(arr: number[]) { return Math.max(1, ...arr) }
           </div>
           <svg :viewBox="`0 0 120 40`" class="w-full h-32">
             <polyline
-              :points="chartData.holders.map((v,i)=>`${(i/(chartData.holders.length-1))*120},${40 - (v/max(chartData.holders))*38}`).join(' ')"
+              :points="chartHolders.map((v,i)=>`${(i/(chartHolders.length-1))*120},${40 - (v/max(chartHolders))*38}`).join(' ')"
               fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-500" />
           </svg>
         </UCard>
