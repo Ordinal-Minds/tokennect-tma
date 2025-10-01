@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTonConnect } from '~/composables/useTonConnect'
 
 // Demo 24h metrics & sparkline series
 const {
@@ -17,10 +18,12 @@ const { portfolioRows, portfolioTotal, portfolioColumns } = useDemoPortfolio()
 
 // Agent run state + init check
 const config = useRuntimeConfig()
-const apiBase = computed(() => (config.public.apiBase as string) + '/api')
+const apiBase = computed(() => ((config.public.apiBase as string) || 'http://localhost:3001').replace(/\/$/, ''))
 const { token: authToken } = useTma()
+const { connected: tonConnected, address: tonAddress, connect: tonConnect, disconnect: tonDisconnect } = useTonConnect()
 
 const agentRunning = ref(false)
+const togglingAgent = ref(false)
 const agentStatusText = computed(() => (agentRunning.value ? 'Running' : 'Paused'))
 
 const checkingInit = ref(false)
@@ -48,6 +51,7 @@ async function checkAgentInitialized(): Promise<boolean> {
 }
 
 async function onToggleAgent(next: boolean) {
+  if (togglingAgent.value) return
   if (next) {
     const ok = await checkAgentInitialized()
     if (!ok) {
@@ -56,7 +60,24 @@ async function onToggleAgent(next: boolean) {
       return
     }
   }
-  agentRunning.value = next
+  if (!authToken.value) return
+  togglingAgent.value = true
+  try {
+    await $fetch<{ ok: boolean; bot: any }>('/bot', {
+      method: 'POST',
+      baseURL: apiBase.value,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken.value}` },
+      body: { isActive: next }
+    })
+    agentRunning.value = next
+    const toast = useToast()
+    toast.add({ title: next ? 'Bot resumed' : 'Bot paused', color: next ? 'green' : 'orange' })
+  } catch (e: any) {
+    const msg = e?.data?.statusMessage || e?.message || 'Failed to update bot activity'
+    useToast().add({ title: 'Error', description: msg, color: 'red' })
+  } finally {
+    togglingAgent.value = false
+  }
 }
 
 function gotoBotSetup() {
@@ -71,8 +92,57 @@ const botBalanceTon = ref<string>('0.000000000')
 const userTonAddress = ref<string>('')
 const linking = ref(false)
 
+function openInTelegramWallet(to: string, comment?: string, amountTon?: string) {
+  const params = new URLSearchParams()
+  if (amountTon) {
+    // amount in nanotons by spec; parse float safely
+    const nano = Math.round(parseFloat(amountTon) * 1e9)
+    if (Number.isFinite(nano) && nano > 0) params.set('amount', String(nano))
+  }
+  if (comment) params.set('text', comment)
+  const url = `ton://transfer/${encodeURIComponent(to)}${params.toString() ? `?${params.toString()}` : ''}`
+  try {
+    const { openLink } = useTelegram()
+    openLink(url)
+  } catch {
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+}
+
 onMounted(async () => {
   await fetchBotWalletInfo()
+  // Sync initial agent active state if bot exists
+  try {
+    if (!authToken.value) return
+    const res = await $fetch<{ ok: boolean; bot: any | null }>('/bot', {
+      method: 'GET',
+      baseURL: apiBase.value,
+      headers: { Authorization: `Bearer ${authToken.value}` }
+    })
+    if (res?.bot) {
+      agentInitialized.value = true
+      agentRunning.value = !!res.bot.isActive
+    }
+  } catch {}
+})
+
+// If user connects a TON wallet (e.g., Telegram Wallet inside TWA), auto-link it
+watch(tonAddress, async (addr) => {
+  try {
+    if (!addr || !authToken.value) return
+    // Normalize and link
+    userTonAddress.value = addr
+    await $fetch<{ ok: boolean; address: string }>("/wallet/link", {
+      method: "POST",
+      baseURL: apiBase.value,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken.value}` },
+      body: { address: addr }
+    })
+    useToast().add({ title: "Wallet linked", description: "Telegram Wallet connected via TON Connect." })
+  } catch (e: any) {
+    const msg = e?.data?.statusMessage || e?.message || 'Failed to link wallet'
+    useToast().add({ title: 'Error', description: msg, color: 'red' })
+  }
 })
 
 async function fetchBotWalletInfo() {
@@ -136,13 +206,18 @@ async function linkWallet() {
       </div>
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-2">
-          <USwitch :model-value="agentRunning" aria-label="Toggle agent running" @update:model-value="onToggleAgent" />
+          <USwitch :model-value="agentRunning" :disabled="togglingAgent" aria-label="Toggle agent running" @update:model-value="onToggleAgent" />
           <UBadge :color="agentRunning ? 'green' : 'gray'" variant="soft">
-            <span v-if="agentRunning" class="inline-flex items-center gap-1" aria-live="polite">
-              <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-              </svg>
+            <span v-if="agentRunning" class="inline-flex items-center gap-2" aria-live="polite">
+              <span class="relative inline-flex h-3.5 w-3.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-25"></span>
+                <span class="relative inline-flex rounded-full h-3.5 w-3.5">
+                  <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                </span>
+              </span>
               Running
             </span>
             <span v-else>Paused</span>
@@ -229,13 +304,32 @@ async function linkWallet() {
           <div class="text-sm text-gray-500">Comment required</div>
           <div class="font-mono">{{ botDepositComment || 'BOT:<your-bot-id>' }}</div>
           <div class="text-xs text-gray-500">Include the exact comment to credit your bot.</div>
+          <div class="pt-2">
+            <UButton :disabled="!botTonAddress" color="gray" variant="outline" @click="openInTelegramWallet(botTonAddress, botDepositComment)">
+              Open in Telegram Wallet
+            </UButton>
+          </div>
         </div>
         <div class="space-y-2">
-          <UFormGroup label="Your TON address">
-            <UInput v-model="userTonAddress" placeholder="EQC... (bounceable)" />
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-500">Your TON wallet</span>
+              <UBadge :color="tonConnected ? 'green' : 'gray'" variant="soft">{{ tonConnected ? 'Connected' : 'Not connected' }}</UBadge>
+            </div>
+            <div v-if="tonConnected" class="font-mono text-sm break-all">
+              {{ tonAddress }}
+            </div>
+            <div class="flex gap-2">
+              <UButton v-if="!tonConnected" color="primary" @click="tonConnect">Connect Telegram Wallet</UButton>
+              <UButton v-else color="gray" variant="soft" @click="tonDisconnect">Disconnect</UButton>
+            </div>
+          </div>
+          <UDivider label="or" class="my-2" />
+          <UFormGroup label="Enter address manually">
+            <UInput v-model="userTonAddress" placeholder="EQC... (bounceable)" :disabled="tonConnected" />
           </UFormGroup>
           <div>
-            <UButton color="primary" :loading="linking" @click="linkWallet">Link Wallet</UButton>
+            <UButton color="gray" :loading="linking" @click="linkWallet">Save Address</UButton>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { onMounted, onUnmounted, reactive, ref, watch, type Ref } from 'vue'
 
-export type DemoToken = {
+export type SimToken = {
   id: string
   symbol: string
   totalSupply: string | number
@@ -31,7 +31,7 @@ function keyFor(tokenId: string) {
   return `DEMO_TOKEN_SIM:${tokenId}`
 }
 
-export function useDemoTokenSim(tokenRef: Ref<DemoToken | null>) {
+export function useDemoTokenSim(tokenRef: Ref<SimToken | null>) {
   const running = ref(false)
   const tickMs = 1500
   const timer = ref<number | NodeJS.Timeout | null>(null)

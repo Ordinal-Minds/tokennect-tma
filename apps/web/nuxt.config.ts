@@ -4,6 +4,10 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   typescript: { strict: true, typeCheck: true },
   css: ['~/assets/css/tailwind.css'],
+  // Ensure Nitro doesn't attempt Netlify-specific behavior during generate
+  nitro: {
+    preset: 'node'
+  },
   // Nuxt UI theme tweaks to align with our Tailwind preset
   ui: {
     // Disable Nuxt UI color mode to force light globally

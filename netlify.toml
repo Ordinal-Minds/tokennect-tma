@@ -5,14 +5,17 @@ base = "apps/web"
 command = "pnpm -F @miniapp/web generate"
 # Nuxt 3 outputs static assets to .output/public when generating
 publish = ".output/public"
+# Force static framework mode to avoid SSR adapters/plugins in Netlify
+framework = "#static"
 
 [build.environment]
 # Ensure a modern Node runtime with Corepack-enabled pnpm
 NODE_VERSION = "20"
+## Prevent Nitro from selecting a Netlify preset implicitly
+NITRO_PRESET = "node"
 
 [[redirects]]
 # Fallback to index for client-side routing
 from = "/*"
 to = "/index.html"
 status = 200
-

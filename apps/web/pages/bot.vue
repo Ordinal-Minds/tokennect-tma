@@ -61,6 +61,7 @@ function removeTag(t: string) {
 const showSuccess = ref(false)
 const successTitle = ref('')
 const successDesc = ref('')
+const togglingActive = ref(false)
 
 onMounted(async () => {
   await fetchExisting()
@@ -157,6 +158,27 @@ async function onSave() {
 }
 
 const availability = computed(() => bot.value?.availability)
+
+async function onToggleActive(next: boolean) {
+  if (!authToken.value || !bot.value) return
+  if (togglingActive.value) return
+  togglingActive.value = true
+  try {
+    const res = await $fetch<{ ok: boolean; bot: BotDTO }>('/bot', {
+      method: 'POST',
+      baseURL: apiBase.value,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken.value}` },
+      body: { isActive: next }
+    })
+    bot.value = res.bot
+    toast.add({ title: next ? 'Bot resumed' : 'Bot paused', color: next ? 'green' : 'orange' })
+  } catch (e: any) {
+    const msg = e?.data?.statusMessage || e?.message || 'Failed to update bot activity'
+    toast.add({ title: 'Error', description: msg, color: 'red' })
+  } finally {
+    togglingActive.value = false
+  }
+}
 </script>
 
 <template>
@@ -166,11 +188,30 @@ const availability = computed(() => bot.value?.availability)
         <h1 class="text-2xl font-semibold">Bot Setup</h1>
         <p class="text-sm text-gray-500">Initialize once, then edit parameters to reload your live bot</p>
       </div>
-      <div class="flex items-center gap-3" v-if="bot">
+      <div class="flex items-center gap-4" v-if="bot">
         <div class="text-sm text-gray-600">Availability:</div>
         <UBadge :color="availability?.available ? 'green' : 'orange'">
           {{ availability?.available ? 'Ready' : `Wait ${availability?.secondsUntilNext}s` }}
         </UBadge>
+        <div class="h-5 w-px bg-gray-200" role="separator" />
+        <div class="flex items-center gap-2">
+          <USwitch :model-value="bot.isActive" :disabled="togglingActive" aria-label="Toggle bot active" @update:model-value="onToggleActive" />
+          <UBadge :color="bot.isActive ? 'green' : 'gray'" variant="soft">
+            <span v-if="bot.isActive" class="inline-flex items-center gap-2">
+              <span class="relative inline-flex h-3.5 w-3.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-25"></span>
+                <span class="relative inline-flex rounded-full h-3.5 w-3.5">
+                  <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                </span>
+              </span>
+              Active
+            </span>
+            <span v-else>Paused</span>
+          </UBadge>
+        </div>
       </div>
     </div>
 

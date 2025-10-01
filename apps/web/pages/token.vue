@@ -123,8 +123,8 @@ async function onCreate() {
     mode.value = 'readonly'
     try { window.localStorage.setItem('DEMO_TOKEN', JSON.stringify(newToken)) } catch {}
     toast.add({ title: 'Token created' })
-    // kick off demo simulation right away
-    sim.start()
+    // kick off demo feed right away
+    feed.start()
   } catch (e: any) {
     const msg = e?.data?.statusMessage || e?.message || 'Failed to create token'
     toast.add({ title: 'Error', description: msg, color: 'red' })
@@ -133,8 +133,8 @@ async function onCreate() {
   }
 }
 
-// Demo simulation of live stats after creation
-const sim = useDemoTokenSim(computed(() => token.value ? ({
+// Live demo feed: price, transactions, holders, series
+const feed = useDemoTokenFeed(computed(() => token.value ? ({
   id: token.value.id,
   symbol: token.value.symbol,
   totalSupply: token.value.totalSupply,
@@ -142,14 +142,16 @@ const sim = useDemoTokenSim(computed(() => token.value ? ({
 
 // Visible stats cards derived from simulator
 const statsList = computed(() => ([
-  { label: 'Transactions', value: sim.state.transactions },
-  { label: 'Holders', value: sim.state.holders },
-  { label: 'Circulating', value: sim.state.circulating },
-  { label: 'TVL (DeFi)', value: sim.state.tvlTon },
+  { label: 'Transactions', value: feed.transactions.value },
+  { label: 'Holders', value: feed.holdersCount.value },
+  { label: 'Circulating', value: feed.circulating.value },
+  { label: 'TVL (DeFi)', value: feed.tvlTon.value },
 ]))
 
-const chartTx = computed(() => sim.state.seriesTx)
-const chartHolders = computed(() => sim.state.seriesHolders)
+const chartTx = computed(() => feed.seriesTx.value)
+const chartHolders = computed(() => feed.seriesHolders.value)
+
+const chartPrice = computed(() => feed.seriesPrice.value)
 
 function max(arr: number[]) { return Math.max(1, ...arr) }
 </script>
@@ -216,11 +218,31 @@ function max(arr: number[]) { return Math.max(1, ...arr) }
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <UCard v-for="s in statsList" :key="s.label" class="!bg-card !border-border shadow-card rounded-lg">
           <div class="text-sm text-gray-500">{{ s.label }}</div>
-          <div class="mt-1 text-2xl font-semibold">{{ s.value }}</div>
+          <div class="mt-1 text-2xl font-semibold">
+            <AnimatedNumber :value="Number(s.value)" :fraction-digits="s.label === 'TVL (DeFi)' ? 2 : 0" />
+          </div>
         </UCard>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <UCard class="!bg-card !border-border shadow-card rounded-lg">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-lg font-medium">Price</h2>
+            <div class="text-sm text-gray-500">USD</div>
+          </div>
+          <div class="text-3xl font-semibold">
+            <AnimatedNumber :value="feed.priceUsd.value" :fraction-digits="6" prefix="$" />
+          </div>
+          <svg :viewBox="`0 0 120 40`" class="w-full h-20 mt-2">
+            <polyline :points="chartPrice.map((v,i)=>`${(i/(chartPrice.length-1))*120},${40 - (v/Math.max(...chartPrice))*38}`).join(' ')" fill="none" stroke="currentColor" stroke-width="2" class="text-fuchsia-500" />
+          </svg>
+          <div class="mt-2 flex gap-2">
+            <UButton size="xs" color="primary" variant="soft" @click="feed.simulateBuy()">Simulate Buy</UButton>
+            <UButton size="xs" color="rose" variant="soft" @click="feed.simulateSell()">Simulate Sell</UButton>
+            <UButton size="xs" color="emerald" variant="soft" @click="feed.simulateAirdrop()">Airdrop</UButton>
+            <UButton size="xs" color="gray" variant="ghost" @click="feed.reset()">Reset</UButton>
+          </div>
+        </UCard>
         <UCard class="!bg-card !border-border shadow-card rounded-lg">
           <div class="flex items-center justify-between mb-2">
             <h2 class="text-lg font-medium">Transactions (30d)</h2>
@@ -242,6 +264,45 @@ function max(arr: number[]) { return Math.max(1, ...arr) }
           </svg>
         </UCard>
       </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <UCard class="!bg-card !border-border shadow-card rounded-lg">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-lg font-medium">Live Transactions</h2>
+          </div>
+          <div class="space-y-2 max-h-80 overflow-auto pr-1">
+            <TransitionGroup name="list" tag="div">
+              <div v-for="tx in feed.txs.value" :key="tx.id" class="flex items-center justify-between rounded border border-border px-3 py-2 bg-background/60">
+                <div class="text-xs font-mono text-gray-500">{{ new Date(tx.ts).toLocaleTimeString() }}</div>
+                <div class="text-sm">
+                  <span :class="tx.type === 'BUY' ? 'text-blue-600' : tx.type === 'SELL' ? 'text-rose-600' : 'text-emerald-600'">{{ tx.type }}</span>
+                  <span class="mx-1">•</span>
+                  <span class="font-mono">{{ tx.amount.toLocaleString() }}</span>
+                  <span class="text-gray-500">{{ token?.symbol }}</span>
+                </div>
+                <div class="text-xs font-mono text-gray-500 truncate w-28">{{ tx.txHash }}</div>
+              </div>
+            </TransitionGroup>
+          </div>
+        </UCard>
+        <UCard class="!bg-card !border-border shadow-card rounded-lg">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-lg font-medium">Top Holders</h2>
+          </div>
+          <div class="space-y-2">
+            <div v-for="h in feed.topHolders.value" :key="h.addr" class="flex items-center justify-between rounded bg-background/60 px-3 py-2">
+              <div class="text-xs font-mono truncate w-56">{{ h.addr }}</div>
+              <div class="text-sm font-semibold">{{ h.bal.toLocaleString() }}</div>
+            </div>
+          </div>
+        </UCard>
+      </div>
     </template>
   </div>
 </template>
+
+<style scoped>
+.list-enter-active, .list-leave-active { transition: all 0.35s ease; }
+.list-enter-from { opacity: 0; transform: translateY(-6px); }
+.list-leave-to { opacity: 0; transform: translateY(6px); }
+</style>

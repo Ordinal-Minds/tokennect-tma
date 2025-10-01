@@ -17,6 +17,7 @@
     "@nuxt/ui": "^2.15.0",
     "@nuxtjs/tailwindcss": "^6.12.1",
     "@telegram-apps/analytics": "^1.4.4",
+    "@tonconnect/ui": "^2.0.8",
     "nuxt": "^3.12.4",
     "vue": "^3"
   },
