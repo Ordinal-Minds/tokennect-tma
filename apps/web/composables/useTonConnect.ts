@@ -45,7 +45,15 @@ export function useTonConnect() {
       const mod = await import('@tonconnect/ui')
       const { TonConnectUI } = mod as any
       const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`
-      tcui = new TonConnectUI({ manifestUrl })
+      const isTWA = !!(window as any)?.Telegram?.WebApp
+      tcui = new TonConnectUI({
+        manifestUrl,
+        uiPreferences: { theme: (document.documentElement as any)?.classList?.contains('dark') ? 'DARK' : 'LIGHT' },
+        actionsConfiguration: {
+          // In Telegram Mini Apps, use QR-less list/modal suitable for in-app wallet
+          modals: isTWA ? ['ios', 'twa'] as any : undefined
+        }
+      })
       try {
         await tcui.connectionRestored
       } catch {}
@@ -67,8 +75,20 @@ export function useTonConnect() {
     const ui = await ensureInstance()
     if (!ui) return
     try {
+      // Always disconnect any prior session to avoid SDK "already connected" errors
+      try { await ui.disconnect() } catch {}
+      try { TONCONNECT_KEYS.forEach((k) => localStorage.removeItem(k)) } catch {}
+      wallet.value = null
+      address.value = null
+      connected.value = false
       // Open TonConnect UI modal (auto-picks Telegram Wallet inside TWA)
-      await ui.openModal()
+      const isTWA = !!(window as any)?.Telegram?.WebApp
+      if (isTWA && ui.openSingleWalletModal) {
+        // Prefer the built-in Telegram Wallet flow in TWA
+        await ui.openSingleWalletModal('telegram-wallet')
+      } else {
+        await ui.openModal()
+      }
     } catch (e) {
       // noop; UI will surface errors
       console.warn('TonConnect openModal failed', e)
